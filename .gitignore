@@ -2,3 +2,4 @@
 *.egg-info/
 build/
 **.so
+dist/mamba_ssm-1.2.0.post1-py3.11-linux-x86_64.egg
