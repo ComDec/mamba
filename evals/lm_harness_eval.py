@@ -22,9 +22,7 @@ class MambaEvalWrapper(HFLM):
         dtype=torch.float16,
     ):
         LM.__init__(self)
-        self._model = MambaLMHeadModel.from_pretrained(
-            pretrained, device=device, dtype=dtype
-        )
+        self._model = MambaLMHeadModel.from_pretrained(pretrained, device=device, dtype=dtype)
         self.tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.vocab_size = self.tokenizer.vocab_size

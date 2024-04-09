@@ -106,23 +106,15 @@ def test_selective_scan(
     else:
         D = None
     if has_z:
-        z = torch.randn(
-            batch_size, dim, seqlen, device=device, dtype=itype, requires_grad=True
-        )
+        z = torch.randn(batch_size, dim, seqlen, device=device, dtype=itype, requires_grad=True)
     else:
         z = None
     if has_delta_bias:
-        delta_bias = (
-            0.5 * torch.rand(dim, device=device, dtype=torch.float32)
-        ).requires_grad_()
+        delta_bias = (0.5 * torch.rand(dim, device=device, dtype=torch.float32)).requires_grad_()
     else:
         delta_bias = None
-    u = torch.randn(
-        batch_size, dim, seqlen, device=device, dtype=itype, requires_grad=True
-    )
-    delta = (
-        0.5 * torch.rand(batch_size, dim, seqlen, device=device, dtype=itype)
-    ).requires_grad_()
+    u = torch.randn(batch_size, dim, seqlen, device=device, dtype=itype, requires_grad=True)
+    delta = (0.5 * torch.rand(batch_size, dim, seqlen, device=device, dtype=itype)).requires_grad_()
     A_ref = A.detach().clone().requires_grad_()
     B_ref = B.detach().clone().requires_grad_()
     C_ref = C.detach().clone().requires_grad_()
@@ -130,9 +122,7 @@ def test_selective_scan(
     z_ref = z.detach().clone().requires_grad_() if z is not None else None
     u_ref = u.detach().clone().requires_grad_()
     delta_ref = delta.detach().clone().requires_grad_()
-    delta_bias_ref = (
-        delta_bias.detach().clone().requires_grad_() if delta_bias is not None else None
-    )
+    delta_bias_ref = delta_bias.detach().clone().requires_grad_() if delta_bias is not None else None
     out, *rest = selective_scan_fn(
         u,
         delta,
@@ -185,16 +175,10 @@ def test_selective_scan(
     if has_z:
         print(f"dz max diff: {(z.grad - z_ref.grad).abs().max().item()}")
     if has_delta_bias:
-        print(
-            f"ddelta_bias max diff: {(delta_bias.grad - delta_bias_ref.grad).abs().max().item()}"
-        )
+        print(f"ddelta_bias max diff: {(delta_bias.grad - delta_bias_ref.grad).abs().max().item()}")
 
-    assert torch.allclose(
-        u.grad, u_ref.grad.to(dtype=itype), rtol=rtol * 2, atol=atol * 2
-    )
-    assert torch.allclose(
-        delta.grad, delta_ref.grad.to(dtype=itype), rtol=rtol * 5, atol=atol * 10
-    )
+    assert torch.allclose(u.grad, u_ref.grad.to(dtype=itype), rtol=rtol * 2, atol=atol * 2)
+    assert torch.allclose(delta.grad, delta_ref.grad.to(dtype=itype), rtol=rtol * 5, atol=atol * 10)
     assert torch.allclose(A.grad, A_ref.grad, rtol=rtolw, atol=atolw * 5)
     assert torch.allclose(
         B.grad,
@@ -213,9 +197,7 @@ def test_selective_scan(
     if has_z:
         assert torch.allclose(z.grad, z_ref.grad, rtol=rtolw, atol=atolw)
     if has_delta_bias:
-        assert torch.allclose(
-            delta_bias.grad, delta_bias_ref.grad, rtol=rtolw, atol=atolw
-        )
+        assert torch.allclose(delta_bias.grad, delta_bias_ref.grad, rtol=rtolw, atol=atolw)
 
 
 @pytest.mark.parametrize("wtype", [torch.float32, torch.complex64])
@@ -244,47 +226,24 @@ def test_mamba_inner_fn(is_variable_B, is_variable_C, seqlen, itype, wtype):
     dstate = 8
     dt_rank = 48
     is_complex = wtype == torch.complex64
-    xz = torch.randn(
-        batch_size, 2 * dim, seqlen, device=device, dtype=itype, requires_grad=True
-    )
-    conv1d_weight = torch.randn(
-        dim, 1, 3, device=device, dtype=torch.float32, requires_grad=True
-    )
-    conv1d_bias = torch.randn(
-        dim, device=device, dtype=torch.float32, requires_grad=True
-    )
+    xz = torch.randn(batch_size, 2 * dim, seqlen, device=device, dtype=itype, requires_grad=True)
+    conv1d_weight = torch.randn(dim, 1, 3, device=device, dtype=torch.float32, requires_grad=True)
+    conv1d_bias = torch.randn(dim, device=device, dtype=torch.float32, requires_grad=True)
     x_proj_weight = torch.randn(
-        dt_rank
-        + (bool(is_variable_B) + bool(is_variable_C))
-        * dstate
-        * (1 if not is_complex else 2),
+        dt_rank + (bool(is_variable_B) + bool(is_variable_C)) * dstate * (1 if not is_complex else 2),
         dim,
         device=device,
         dtype=itype,
         requires_grad=True,
     )
-    delta_proj_weight = torch.randn(
-        dim, dt_rank, device=device, dtype=itype, requires_grad=True
-    )
-    out_proj_weight = torch.randn(
-        dim // 2, dim, device=device, dtype=itype, requires_grad=True
-    )
+    delta_proj_weight = torch.randn(dim, dt_rank, device=device, dtype=itype, requires_grad=True)
+    out_proj_weight = torch.randn(dim // 2, dim, device=device, dtype=itype, requires_grad=True)
     out_proj_bias = None
     A = (-0.5 * torch.rand(dim, dstate, device=device, dtype=wtype)).requires_grad_()
-    B = (
-        torch.randn(dim, dstate, device=device, dtype=wtype, requires_grad=True)
-        if not is_variable_B
-        else None
-    )
-    C = (
-        torch.randn(dim, dstate, device=device, dtype=wtype, requires_grad=True)
-        if not is_variable_C
-        else None
-    )
+    B = torch.randn(dim, dstate, device=device, dtype=wtype, requires_grad=True) if not is_variable_B else None
+    C = torch.randn(dim, dstate, device=device, dtype=wtype, requires_grad=True) if not is_variable_C else None
     D = torch.randn(dim, device=device, dtype=torch.float32, requires_grad=True)
-    delta_bias = (
-        0.5 * torch.rand(dim, device=device, dtype=torch.float32)
-    ).requires_grad_()
+    delta_bias = (0.5 * torch.rand(dim, device=device, dtype=torch.float32)).requires_grad_()
     B_proj_bias = None
     C_proj_bias = None
     xz_ref = xz.detach().clone().requires_grad_()
@@ -293,18 +252,12 @@ def test_mamba_inner_fn(is_variable_B, is_variable_C, seqlen, itype, wtype):
     x_proj_weight_ref = x_proj_weight.detach().clone().requires_grad_()
     delta_proj_weight_ref = delta_proj_weight.detach().clone().requires_grad_()
     out_proj_weight_ref = out_proj_weight.detach().clone().requires_grad_()
-    out_proj_bias_ref = (
-        out_proj_bias.detach().clone().requires_grad_()
-        if out_proj_bias is not None
-        else None
-    )
+    out_proj_bias_ref = out_proj_bias.detach().clone().requires_grad_() if out_proj_bias is not None else None
     A_ref = A.detach().clone().requires_grad_()
     B_ref = B.detach().clone().requires_grad_() if B is not None else None
     C_ref = C.detach().clone().requires_grad_() if C is not None else None
     D_ref = D.detach().clone().requires_grad_()
-    delta_bias_ref = (
-        delta_bias.detach().clone().requires_grad_() if delta_bias is not None else None
-    )
+    delta_bias_ref = delta_bias.detach().clone().requires_grad_() if delta_bias is not None else None
     out = mamba_inner_fn(
         xz,
         conv1d_weight,
@@ -353,24 +306,12 @@ def test_mamba_inner_fn(is_variable_B, is_variable_C, seqlen, itype, wtype):
     if not is_variable_C:
         print(f"dC max diff: {(C.grad - C_ref.grad).abs().max().item()}")
     print(f"dD max diff: {(D.grad - D_ref.grad).abs().max().item()}")
-    print(
-        f"ddelta_bias max diff: {(delta_bias.grad - delta_bias_ref.grad).abs().max().item()}"
-    )
-    print(
-        f"dout_proj_weight max diff: {(out_proj_weight.grad - out_proj_weight_ref.grad).abs().max().item()}"
-    )
-    print(
-        f"ddelta_proj_weight max diff: {(delta_proj_weight.grad - delta_proj_weight_ref.grad).abs().max().item()}"
-    )
-    print(
-        f"dx_proj_weight max diff: {(x_proj_weight.grad - x_proj_weight_ref.grad).abs().max().item()}"
-    )
-    print(
-        f"dconv1d_weight max diff: {(conv1d_weight.grad - conv1d_weight_ref.grad).abs().max().item()}"
-    )
-    print(
-        f"dconv1d_bias max diff: {(conv1d_bias.grad - conv1d_bias_ref.grad).abs().max().item()}"
-    )
+    print(f"ddelta_bias max diff: {(delta_bias.grad - delta_bias_ref.grad).abs().max().item()}")
+    print(f"dout_proj_weight max diff: {(out_proj_weight.grad - out_proj_weight_ref.grad).abs().max().item()}")
+    print(f"ddelta_proj_weight max diff: {(delta_proj_weight.grad - delta_proj_weight_ref.grad).abs().max().item()}")
+    print(f"dx_proj_weight max diff: {(x_proj_weight.grad - x_proj_weight_ref.grad).abs().max().item()}")
+    print(f"dconv1d_weight max diff: {(conv1d_weight.grad - conv1d_weight_ref.grad).abs().max().item()}")
+    print(f"dconv1d_bias max diff: {(conv1d_bias.grad - conv1d_bias_ref.grad).abs().max().item()}")
 
     # assert torch.allclose(xz.grad, xz_ref.grad.to(dtype=itype), rtol=rtol * 2, atol=atol * 2)
     # assert torch.allclose(delta.grad, delta_ref.grad.to(dtype=itype), rtol=rtol * 5, atol=atol * 10)

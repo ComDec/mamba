@@ -15,9 +15,7 @@ from einops import rearrange, repeat
 @triton.heuristics({"HAS_DT_BIAS": lambda args: args["dt_bias_ptr"] is not None})
 @triton.heuristics({"HAS_D": lambda args: args["D_ptr"] is not None})
 @triton.heuristics({"HAS_Z": lambda args: args["z_ptr"] is not None})
-@triton.heuristics(
-    {"BLOCK_SIZE_DSTATE": lambda args: triton.next_power_of_2(args["dstate"])}
-)
+@triton.heuristics({"BLOCK_SIZE_DSTATE": lambda args: triton.next_power_of_2(args["dstate"])})
 @triton.jit
 def _selective_scan_update_kernel(
     # Pointers to matrices
@@ -76,16 +74,12 @@ def _selective_scan_update_kernel(
 
     offs_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
     offs_n = tl.arange(0, BLOCK_SIZE_DSTATE)
-    state_ptrs = state_ptr + (
-        offs_m[:, None] * stride_state_dim + offs_n[None, :] * stride_state_dstate
-    )
+    state_ptrs = state_ptr + (offs_m[:, None] * stride_state_dim + offs_n[None, :] * stride_state_dstate)
     x_ptrs = x_ptr + offs_m * stride_x_dim
     dt_ptrs = dt_ptr + offs_m * stride_dt_dim
     if HAS_DT_BIAS:
         dt_bias_ptrs = dt_bias_ptr + offs_m * stride_dt_bias_dim
-    A_ptrs = A_ptr + (
-        offs_m[:, None] * stride_A_dim + offs_n[None, :] * stride_A_dstate
-    )
+    A_ptrs = A_ptr + (offs_m[:, None] * stride_A_dim + offs_n[None, :] * stride_A_dstate)
     B_ptrs = B_ptr + offs_n * stride_B_dstate
     C_ptrs = C_ptr + offs_n * stride_C_dstate
     if HAS_D:
@@ -94,18 +88,14 @@ def _selective_scan_update_kernel(
         z_ptrs = z_ptr + offs_m * stride_z_dim
     out_ptrs = out_ptr + offs_m * stride_out_dim
 
-    state = tl.load(
-        state_ptrs, mask=(offs_m[:, None] < dim) & (offs_n[None, :] < dstate), other=0.0
-    )
+    state = tl.load(state_ptrs, mask=(offs_m[:, None] < dim) & (offs_n[None, :] < dstate), other=0.0)
     x = tl.load(x_ptrs, mask=offs_m < dim, other=0.0).to(tl.float32)
     dt = tl.load(dt_ptrs, mask=offs_m < dim, other=0.0).to(tl.float32)
     if HAS_DT_BIAS:
         dt += tl.load(dt_bias_ptrs, mask=offs_m < dim, other=0.0).to(tl.float32)
     if DT_SOFTPLUS:
         dt = tl.where(dt <= 20.0, tl.math.log1p(tl.exp(dt)), dt)
-    A = tl.load(
-        A_ptrs, mask=(offs_m[:, None] < dim) & (offs_n[None, :] < dstate), other=0.0
-    ).to(tl.float32)
+    A = tl.load(A_ptrs, mask=(offs_m[:, None] < dim) & (offs_n[None, :] < dstate), other=0.0).to(tl.float32)
     dA = tl.exp(A * dt[:, None])
     B = tl.load(B_ptrs, mask=offs_n < dstate, other=0.0).to(tl.float32)
     C = tl.load(C_ptrs, mask=offs_n < dstate, other=0.0).to(tl.float32)
@@ -116,9 +106,7 @@ def _selective_scan_update_kernel(
 
     dB = B[None, :] * dt[:, None]
     state = state * dA + dB * x[:, None]
-    tl.store(
-        state_ptrs, state, mask=(offs_m[:, None] < dim) & (offs_n[None, :] < dstate)
-    )
+    tl.store(state_ptrs, state, mask=(offs_m[:, None] < dim) & (offs_n[None, :] < dstate))
     out = tl.sum(state * C[None, :], axis=1)
     if HAS_D:
         out += x * D
@@ -127,9 +115,7 @@ def _selective_scan_update_kernel(
     tl.store(out_ptrs, out, mask=offs_m < dim)
 
 
-def selective_state_update(
-    state, x, dt, A, B, C, D=None, z=None, dt_bias=None, dt_softplus=False
-):
+def selective_state_update(state, x, dt, A, B, C, D=None, z=None, dt_bias=None, dt_softplus=False):
     """
     Argument:
         state: (batch, dim, dstate)
@@ -164,11 +150,7 @@ def selective_state_update(
     BLOCK_SIZE_M, num_warps = (
         (32, 4)
         if dstate <= 16
-        else (
-            (16, 4)
-            if dstate <= 32
-            else ((8, 4) if dstate <= 64 else ((4, 4) if dstate <= 128 else ((4, 8))))
-        )
+        else ((16, 4) if dstate <= 32 else ((8, 4) if dstate <= 64 else ((4, 4) if dstate <= 128 else ((4, 8)))))
     )
     with torch.cuda.device(x.device.index):
         _selective_scan_update_kernel[grid](
@@ -211,9 +193,7 @@ def selective_state_update(
     return out
 
 
-def selective_state_update_ref(
-    state, x, dt, A, B, C, D=None, z=None, dt_bias=None, dt_softplus=False
-):
+def selective_state_update_ref(state, x, dt, A, B, C, D=None, z=None, dt_bias=None, dt_softplus=False):
     """
     Argument:
         state: (batch, dim, dstate)
@@ -243,9 +223,7 @@ def selective_state_update_ref(
         dt = dt + dt_bias
     dt = F.softplus(dt) if dt_softplus else dt
     dA = torch.exp(rearrange(dt, "b d -> b d 1") * A)  # (batch, dim, dstate)
-    dB = rearrange(dt, "b d -> b d 1") * rearrange(
-        B, "b n -> b 1 n"
-    )  # (batch, dim, dstate)
+    dB = rearrange(dt, "b d -> b d 1") * rearrange(B, "b n -> b 1 n")  # (batch, dim, dstate)
     state.copy_(state * dA + dB * rearrange(x, "b d -> b d 1"))  # (batch, dim, dstate
     out = torch.einsum("bdn,bn->bd", state.to(C.dtype), C)
     if D is not None:
